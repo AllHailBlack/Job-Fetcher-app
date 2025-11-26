@@ -41,7 +41,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
    CONFIGURATION
    ========================= */
 const PORT = process.env.PORT || 3000;
-const JOB_TYPE = 'concept artist, 2d character artist';
+const JOB_TYPE = 'concept artist, 2d character artist,art studio, character design, game art';
 const MAX_JOBS = 30; // limit per fetch
 const JOB_API_URL = 'https://remotive.com/api/remote-jobs?search='; // example public API
 
@@ -201,40 +201,43 @@ function finalMatchScore(resumeText, job) {
    - Extracts keywords
    - Stores up to MAX_JOBS
    ========================= */
-async function fetchJobs(jobType = JOB_TYPE) {
+async function fetchJobs() {
   try {
-    const url = `${JOB_API_URL}${encodeURIComponent(jobType)}`;
-    const resp = await axios.get(url, { timeout: 15000 });
-    const jobsRaw = (resp.data && resp.data.jobs) || [];
+    const response = await axios.get(JOB_API_URL + encodeURIComponent(JOB_TYPE));
+    let jobs = response.data.jobs || [];
 
-    const jobs = jobsRaw.slice(0, MAX_JOBS).map(j => {
-      const description = j.description || j.job_description || j.contents || '';
-      const keywords = extractKeywords(description, 25);
-      return {
-        id: j.id || uuidv4(),
-        title: j.title || j.name || 'Unknown Title',
-        company: j.company_name || j.company || 'Unknown Company',
-        description,
-        url: j.url || j.job_url || null,
-        location: j.candidate_required_location || j.location || 'Remote',
-        keywords
-      };
-    });
+    // Filter India-based roles
+    const INDIA_REGEX = /(india|bangalore|bengaluru|mumbai|delhi|hyderabad|pune|chennai|gurgaon|noida)/i;
 
-    storedJobs = jobs;
-    lastFetchAt = new Date().toISOString();
-    console.log(`[${new Date().toISOString()}] Fetched ${jobs.length} jobs for '${jobType}'`);
-    return jobs.length;
+    jobs = jobs.filter(job =>
+      INDIA_REGEX.test(job.candidate_required_location) ||
+      INDIA_REGEX.test(job.title) ||
+      INDIA_REGEX.test(job.description)
+    );
+
+    // Filter only studio jobs
+    const STUDIO_REGEX = /(studio|animation|game studio|production studio|design studio)/i;
+
+    jobs = jobs.filter(job =>
+      STUDIO_REGEX.test(job.title) ||
+      STUDIO_REGEX.test(job.company_name) ||
+      STUDIO_REGEX.test(job.description)
+    );
+
+    // Keep max 30
+    storedJobs = jobs.slice(0, 30);
+
+    console.log("Fetched", storedJobs.length, "India-based studio jobs.");
   } catch (err) {
-    console.error('Job fetch failed:', err.message || err);
-    return 0;
+    console.error('Job fetch failed:', err.message);
   }
 }
+
 
 // initial fetch
 fetchJobs().catch(() => {});
 
-// schedule daily fetch at 09:00 server time
+// schedule daily fetch at 10:30 server time
 cron.schedule('30 10 * * *', () => {
   console.log('Running scheduled job fetch...');
   fetchJobs().catch(() => {});
