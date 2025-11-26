@@ -19,6 +19,30 @@
 
   NOTE: This is an expanded single-file example. For production, split into routes/controllers/services.
 */
+/* ==================================================
+   SMART JOB FILTERING RULES
+   ================================================== */
+const GOOD_KEYWORDS = [
+  "concept", "artist", "character", "2d", "3d", "illustration", "illustrator",
+  "animation", "animator", "storyboard", "game", "gaming", "visual", "design",
+  "designer", "environment", "art", "studio"
+];
+
+const BAD_KEYWORDS = [
+  "bpo", "sales", "hr", "pharma", "medical", "nurse", "doctor",
+  "teacher", "lecturer", "bank", "accountant", "finance", "marketing",
+  "call center", "helpdesk", "support", "assistant"
+];
+
+function passesGoodFilters(text) {
+  return GOOD_KEYWORDS.some(w => new RegExp(w, "i").test(text));
+}
+
+function failsBadFilters(text) {
+  return BAD_KEYWORDS.some(w => new RegExp(w, "i").test(text));
+}
+
+
 require('dotenv').config();
 
 const express = require('express');
@@ -338,15 +362,78 @@ async function searchJoobleIndiaJobs(query = "concept artist") {
   }
 }
 
+/* ==================================================
+   MERGE + DEDUPE JOBS ACROSS SOURCES
+   ================================================== */
+function mergeJobSources(...sources) {
+  const map = new Map();
+
+  sources.flat().forEach(job => {
+    if (!job || !job.url) return;
+
+    // Unique key per job (URL is most reliable)
+    const key = job.url.trim().toLowerCase();
+
+    if (!map.has(key)) {
+      map.set(key, job);
+    }
+  });
+
+  return [...map.values()];
+}
+
+/* ==================================================
+   JOB RELEVANCE SCORING
+   Rate each job based on title + description similarity
+   ================================================== */
+function scoreJobRelevance(job) {
+  const title = job.title ? job.title.toLowerCase() : "";
+  const desc = job.description ? job.description.toLowerCase() : "";
+
+  let score = 0;
+
+  GOOD_KEYWORDS.forEach(k => {
+    if (title.includes(k)) score += 8;
+    if (desc.includes(k)) score += 5;
+  });
+
+  BAD_KEYWORDS.forEach(k => {
+    if (title.includes(k)) score -= 10;
+    if (desc.includes(k)) score -= 8;
+  });
+
+  return score;
+}
+
+/* ==================================================
+   SMART JOB FILTERING
+   - Removes irrelevant jobs
+   - Keeps only strong creative roles
+   ================================================== */
+function smartFilterJobs(jobs) {
+  return jobs.filter(job => {
+    const text = `${job.title} ${job.company} ${job.description}`.toLowerCase();
+
+    if (!passesGoodFilters(text)) return false;
+    if (failsBadFilters(text)) return false;
+
+    return true;
+  });
+}
+
 
 /* =========================
    EXPRESS ROUTES
    ========================= */
 
-/* =========================
-   INDIA STUDIO JOBS (Remotive + Adzuna + Jooble)
-   ========================= */
-
+/* ==================================================
+   MASTER ENDPOINT — INDIA STUDIO JOB SEARCH
+   Fetches jobs from: Remotive + Adzuna + Jooble
+   Applies:
+   - Smart Creative Filtering
+   - Relevance Scoring
+   - Deduping
+   ================================================== */
 app.get('/india-studio-jobs-all', async (req, res) => {
   try {
     const q = req.query.q || "concept artist, 2d artist, game artist";
@@ -356,29 +443,40 @@ app.get('/india-studio-jobs-all', async (req, res) => {
       searchJoobleIndiaJobs(q)
     ]);
 
-    // storedJobs = Remotive India jobs already fetched daily
+    const remotive = storedJobs.map(j => ({
+      title: j.title,
+      company: j.company_name || j.company || "",
+      location: j.candidate_required_location || "Remote",
+      description: j.description || "",
+      url: j.url,
+      source: "Remotive"
+    }));
 
-    const all = [
-      ...storedJobs.map(j => ({ ...j, source: "Remotive" })),
-      ...adzuna,
-      ...jooble
-    ];
+    // Merge + filter
+    const merged = mergeJobSources(remotive, adzuna, jooble);
+    const filtered = smartFilterJobs(merged);
+
+    // Score + sort
+    const scored = filtered
+      .map(job => ({ ...job, relevance: scoreJobRelevance(job) }))
+      .sort((a, b) => b.relevance - a.relevance);
 
     res.json({
-      total: all.length,
       sources: {
-        remotive: storedJobs.length,
+        remotive: remotive.length,
         adzuna: adzuna.length,
         jooble: jooble.length
       },
-      jobs: all
+      total_after_filtering: scored.length,
+      jobs: scored
     });
 
   } catch (err) {
-    console.error("Unified India search error:", err);
-    res.status(500).json({ error: "India job search failed" });
+    console.error("Smart India search error:", err);
+    res.status(500).json({ error: "Failed to run smart job search" });
   }
 });
+
 
 // Health
 app.get('/health', (req, res) => res.json({ ok: true, lastFetchAt }));

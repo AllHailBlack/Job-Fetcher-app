@@ -112,7 +112,7 @@
   </div>
 
   <script>
-    const BASE_URL = "https://job-fetcher-app.onrender.com"; // Replace after deployment
+    const BASE_URL = "https://YOUR-RENDER-URL.onrender.com"; // Replace after deployment
 
     async function uploadResume() {
       const file = document.getElementById('resumeFile').files[0];
@@ -175,6 +175,18 @@
       const data = await res.json();
       document.getElementById('clResult').textContent = JSON.stringify(data, null, 2);
     }
+      async function fetchIndiaStudioJobs() {
+      const res = await fetch(BASE_URL + '/india-studio-jobs-all');
+      const data = await res.json();
+      document.getElementById('indiaJobsResult').textContent = JSON.stringify(data, null, 2);
+    }
+
   </script>
+  <div class="container">
+    <h2>🇮🇳 India Studio Job Search</h2>
+    <button onclick="fetchIndiaStudioJobs()">Fetch India Studio Jobs</button>
+    <div id="indiaJobsResult" class="result-box"></div>
+  </div>
+
 </body>
 </html>
