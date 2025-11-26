@@ -442,9 +442,12 @@ ${resumeText}`);
 /* =========================
    SIMPLE UI ENDPOINTS (for quick testing)
    ========================= */
+const path = require('path');
+
 app.get('/', (req, res) => {
-  res.send('<h3>Daily Job Fetcher - API Running</h3><p>See endpoints: /jobs, /match, /upload-resume, /resume-tips, /tailor-resume, /cover-letter</p>');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
 
 /* =========================
    START SERVER
