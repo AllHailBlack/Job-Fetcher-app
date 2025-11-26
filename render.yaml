@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ai-job-matcher
+    env: node
+    plan: free
+    region: ore
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false

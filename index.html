@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Job Matcher</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      color: #333;
+    }
+
+    header {
+      background: #222;
+      padding: 20px;
+      color: #fff;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      border-left: 4px solid #0078ff;
+      padding-left: 8px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+
+    button {
+      background: #0078ff;
+      color: #fff;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #005fcc;
+    }
+
+    .result-box {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 15px;
+      border: 1px solid #ddd;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI Job Matcher — Concept Art & 2D Artist</h1>
+  </header>
+
+  <div class="container">
+    <h2>📄 Upload Resume (PDF/DOCX)</h2>
+    <input type="file" id="resumeFile" />
+    <button onclick="uploadResume()">Upload & Match</button>
+    <div id="uploadResult" class="result-box"></div>
+  </div>
+
+  <div class="container">
+    <h2>🧠 Match Resume Text Manually</h2>
+    <textarea id="resumeText" rows="6" placeholder="Paste your resume text here..."></textarea>
+    <button onclick="matchResume()">Match Jobs</button>
+    <div id="matchResult" class="result-box"></div>
+  </div>
+
+  <div class="container">
+    <h2>✨ Get Resume Improvement Tips</h2>
+    <textarea id="tipsText" rows="6" placeholder="Paste resume text..."></textarea>
+    <button onclick="getTips()">Get Tips</button>
+    <div id="tipsResult" class="result-box"></div>
+  </div>
+
+  <div class="container">
+    <h2>🎯 Tailor Resume to a Job Description</h2>
+    <textarea id="tailorResumeText" rows="6" placeholder="Paste your resume..."></textarea>
+    <textarea id="tailorJobText" rows="4" placeholder="Paste job description..."></textarea>
+    <button onclick="tailorResume()">Tailor Resume</button>
+    <div id="tailorResult" class="result-box"></div>
+  </div>
+
+  <div class="container">
+    <h2>✍️ Generate AI Cover Letter</h2>
+    <input type="text" id="companyName" placeholder="Company name" />
+    <textarea id="clResume" rows="5" placeholder="Paste your resume..."></textarea>
+    <textarea id="clJob" rows="4" placeholder="Paste job description..."></textarea>
+    <button onclick="generateCoverLetter()">Generate Cover Letter</button>
+    <div id="clResult" class="result-box"></div>
+  </div>
+
+  <script>
+    const BASE_URL = "https://YOUR-RENDER-URL.onrender.com"; // Replace after deployment
+
+    async function uploadResume() {
+      const file = document.getElementById('resumeFile').files[0];
+      if (!file) return alert("Please choose a file.");
+
+      const formData = new FormData();
+      formData.append('resume', file);
+
+      const res = await fetch(BASE_URL + '/upload-resume', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      document.getElementById('uploadResult').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function matchResume() {
+      const text = document.getElementById('resumeText').value;
+      const res = await fetch(BASE_URL + '/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeText: text })
+      });
+      const data = await res.json();
+      document.getElementById('matchResult').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function getTips() {
+      const text = document.getElementById('tipsText').value;
+      const res = await fetch(BASE_URL + '/resume-tips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeText: text })
+      });
+      const data = await res.json();
+      document.getElementById('tipsResult').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function tailorResume() {
+      const resume = document.getElementById('tailorResumeText').value;
+      const job = document.getElementById('tailorJobText').value;
+
+      const res = await fetch(BASE_URL + '/tailor-resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeText: resume, jobDescription: job })
+      });
+      const data = await res.json();
+      document.getElementById('tailorResult').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function generateCoverLetter() {
+      const companyName = document.getElementById('companyName').value;
+      const resume = document.getElementById('clResume').value;
+      const job = document.getElementById('clJob').value;
+
+      const res = await fetch(BASE_URL + '/cover-letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyName, resumeText: resume, jobDescription: job })
+      });
+      const data = await res.json();
+      document.getElementById('clResult').textContent = JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+</html>
