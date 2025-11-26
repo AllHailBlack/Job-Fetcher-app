@@ -44,6 +44,8 @@ const PORT = process.env.PORT || 3000;
 const JOB_TYPE = 'concept artist, 2d character artist,art studio, character design, game art';
 const MAX_JOBS = 30; // limit per fetch
 const JOB_API_URL = 'https://remotive.com/api/remote-jobs?search='; // example public API
+const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
+const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
 
 /* =========================
    EXPRESS + MIDDLEWARE
@@ -244,8 +246,70 @@ cron.schedule('30 10 * * *', () => {
 });
 
 /* =========================
+   ADZUNA INDIA JOB SEARCH (Studio & Art Roles)
+   ========================= */
+
+async function searchAdzunaIndiaJobs(query = "concept artist") {
+  try {
+    if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
+      console.error("Adzuna credentials missing!");
+      return [];
+    }
+
+    const url =
+      `https://api.adzuna.com/v1/api/jobs/in/search/1` +
+      `?app_id=${ADZUNA_APP_ID}` +
+      `&app_key=${ADZUNA_APP_KEY}` +
+      `&results_per_page=50` +
+      `&what=${encodeURIComponent(query)}` +
+      `&where=India`;
+
+    const response = await axios.get(url);
+    const results = response.data.results || [];
+
+    // Filter for art/studio roles
+    const STUDIO_REGEX = /(studio|game|animation|artist|concept|2d|designer|visual)/i;
+
+    return results
+      .filter(job =>
+        STUDIO_REGEX.test(job.title) ||
+        STUDIO_REGEX.test(job.description) ||
+        STUDIO_REGEX.test(job.company?.display_name || "")
+      )
+      .map(job => ({
+        title: job.title,
+        company: job.company?.display_name || "",
+        location: job.location?.display_name || "India",
+        description: job.description,
+        url: job.redirect_url,
+        salary: job.salary_min ? `${job.salary_min} - ${job.salary_max}` : "N/A",
+        source: "Adzuna"
+      }));
+
+  } catch (err) {
+    console.error("Adzuna error:", err.message);
+    return [];
+  }
+}
+
+
+/* =========================
    EXPRESS ROUTES
    ========================= */
+/* =========================
+   INDIA STUDIO JOB SEARCH (Adzuna + Studio Filtering)
+   ========================= */
+
+app.get('/india-studio-jobs', async (req, res) => {
+  try {
+    const q = req.query.q || "concept artist, 2d artist, game artist";
+    const jobs = await searchAdzunaIndiaJobs(q);
+    res.json({ count: jobs.length, jobs });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch India studio jobs" });
+  }
+});
+
 
 // Health
 app.get('/health', (req, res) => res.json({ ok: true, lastFetchAt }));
