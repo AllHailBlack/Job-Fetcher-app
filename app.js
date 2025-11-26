@@ -25,7 +25,7 @@
 const GOOD_KEYWORDS = [
   "concept", "artist", "character", "2d", "3d", "illustration", "illustrator",
   "animation", "animator", "storyboard", "game", "gaming", "visual", "design",
-  "designer", "environment", "art", "studio"
+  "designer", "environment", "art"
 ];
 
 const BAD_KEYWORDS = [
@@ -65,7 +65,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
    CONFIGURATION
    ========================= */
 const PORT = process.env.PORT || 3000;
-const JOB_TYPE = 'concept artist, 2d character artist,art studio, character design, game art';
+const JOB_TYPE = 'concept artist, 2d character artist, character design, game art';
 const MAX_JOBS = 30; // limit per fetch
 const JOB_API_URL = 'https://remotive.com/api/remote-jobs?search='; // example public API
 const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
@@ -242,15 +242,6 @@ async function fetchJobs() {
       INDIA_REGEX.test(job.description)
     );
 
-    // Filter only studio jobs
-    const STUDIO_REGEX = /(studio|animation|game studio|production studio|design studio)/i;
-
-    jobs = jobs.filter(job =>
-      STUDIO_REGEX.test(job.title) ||
-      STUDIO_REGEX.test(job.company_name) ||
-      STUDIO_REGEX.test(job.description)
-    );
-
     // Keep max 30
     storedJobs = jobs.slice(0, 30);
 
@@ -293,13 +284,14 @@ async function searchAdzunaIndiaJobs(query = "concept artist") {
     const results = response.data.results || [];
 
     // Filter for art/studio roles
-    const STUDIO_REGEX = /(studio|game|animation|artist|concept|2d|designer|visual)/i;
+    const GOOD = /(concept|2d|artist|designer|illustration|animation|game|visual|character|storyboard)/i;
+
 
     return results
       .filter(job =>
-        STUDIO_REGEX.test(job.title) ||
-        STUDIO_REGEX.test(job.description) ||
-        STUDIO_REGEX.test(job.company?.display_name || "")
+        GOOD.test(job.title) ||
+        GOOD.test(job.description) ||
+        GOOD.test(job.company?.display_name || "")
       )
       .map(job => ({
         title: job.title,
@@ -339,13 +331,14 @@ async function searchJoobleIndiaJobs(query = "concept artist") {
     const response = await axios.post(url, payload);
     const jobs = response.data.jobs || [];
 
-    const STUDIO_REGEX = /(studio|game|animation|artist|concept|2d|designer|visual)/i;
+    const GOOD = /(concept|2d|artist|illustrator|animation|gaming|designer|visual|character)/i;
+
 
     return jobs
       .filter(job =>
-        STUDIO_REGEX.test(job.title) ||
-        STUDIO_REGEX.test(job.snippet) ||
-        STUDIO_REGEX.test(job.company)
+        GOOD.test(job.title) ||
+        GOOD.test(job.snippet) ||
+        GOOD.test(job.company)
       )
       .map(job => ({
         title: job.title,
