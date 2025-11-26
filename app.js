@@ -80,30 +80,22 @@ function cleanAndTokenize(text) {
    ========================= */
 function extractKeywords(text, limit = 20) {
   const ART_KEYWORDS = new Set([
-    'concept', 'artist', 'character', '2d', 'illustration', 'digital', 'painting', 'anatomy',
-    'stylized', 'environment', 'sketch', 'photoshop', 'procreate', 'color', 'lighting',
-    'render', 'visual', 'design', 'composition', 'story', 'ideation'
+    'concept','artist','character','2d','illustration','digital','painting','anatomy',
+    'stylized','environment','sketch','photoshop','procreate','color','lighting',
+    'render','visual','design','composition','story','ideation'
   ]);
 
   const tokens = cleanAndTokenize(text);
   const freq = {};
 
   tokens.forEach(t => {
-    // base weighting
-    let weight = 1;
-
-    // boost if it's an art domain keyword
-    if (ART_KEYWORDS.has(t)) weight = 4;
-
+    const weight = ART_KEYWORDS.has(t) ? 4 : 1;
     freq[t] = (freq[t] || 0) + weight;
   });
 
   const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
   return sorted.slice(0, limit).map(([term]) => term);
-};
-  tokens.forEach(t => (freq[t] = (freq[t] || 0) + 1));
-  const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
-  return sorted.slice(0, limit).map(([term]) => term);
+}
 
 
 /* =========================
