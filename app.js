@@ -46,6 +46,7 @@ const MAX_JOBS = 30; // limit per fetch
 const JOB_API_URL = 'https://remotive.com/api/remote-jobs?search='; // example public API
 const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
+const JOOBLE_API_KEY = process.env.JOOBLE_API_KEY;
 
 /* =========================
    EXPRESS + MIDDLEWARE
@@ -292,24 +293,92 @@ async function searchAdzunaIndiaJobs(query = "concept artist") {
   }
 }
 
+/* =========================
+   JOOBLE INDIA JOB SEARCH
+   ========================= */
+
+async function searchJoobleIndiaJobs(query = "concept artist") {
+  try {
+    if (!JOOBLE_API_KEY) {
+      console.error("Jooble API key missing!");
+      return [];
+    }
+
+    const url = `https://jooble.org/api/${JOOBLE_API_KEY}`;
+    const payload = {
+      keywords: query,
+      location: "India",
+      page: 1,
+      searchMode: 1
+    };
+
+    const response = await axios.post(url, payload);
+    const jobs = response.data.jobs || [];
+
+    const STUDIO_REGEX = /(studio|game|animation|artist|concept|2d|designer|visual)/i;
+
+    return jobs
+      .filter(job =>
+        STUDIO_REGEX.test(job.title) ||
+        STUDIO_REGEX.test(job.snippet) ||
+        STUDIO_REGEX.test(job.company)
+      )
+      .map(job => ({
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        description: job.snippet,
+        url: job.link,
+        source: "Jooble"
+      }));
+
+  } catch (err) {
+    console.error("Jooble error:", err.message);
+    return [];
+  }
+}
+
 
 /* =========================
    EXPRESS ROUTES
    ========================= */
+
 /* =========================
-   INDIA STUDIO JOB SEARCH (Adzuna + Studio Filtering)
+   INDIA STUDIO JOBS (Remotive + Adzuna + Jooble)
    ========================= */
 
-app.get('/india-studio-jobs', async (req, res) => {
+app.get('/india-studio-jobs-all', async (req, res) => {
   try {
     const q = req.query.q || "concept artist, 2d artist, game artist";
-    const jobs = await searchAdzunaIndiaJobs(q);
-    res.json({ count: jobs.length, jobs });
+
+    const [adzuna, jooble] = await Promise.all([
+      searchAdzunaIndiaJobs(q),
+      searchJoobleIndiaJobs(q)
+    ]);
+
+    // storedJobs = Remotive India jobs already fetched daily
+
+    const all = [
+      ...storedJobs.map(j => ({ ...j, source: "Remotive" })),
+      ...adzuna,
+      ...jooble
+    ];
+
+    res.json({
+      total: all.length,
+      sources: {
+        remotive: storedJobs.length,
+        adzuna: adzuna.length,
+        jooble: jooble.length
+      },
+      jobs: all
+    });
+
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch India studio jobs" });
+    console.error("Unified India search error:", err);
+    res.status(500).json({ error: "India job search failed" });
   }
 });
-
 
 // Health
 app.get('/health', (req, res) => res.json({ ok: true, lastFetchAt }));
