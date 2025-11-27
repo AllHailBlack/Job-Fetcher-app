@@ -355,6 +355,89 @@ async function searchJoobleIndiaJobs(query = "concept artist") {
   }
 }
 
+// LinkedIn Scraper
+
+async function fetchLinkedInJobs(query = "concept artist") {
+  try {
+    const url = `https://api.apify.com/v2/actor-tasks/${process.env.APIFY_LINKEDIN_TASK_ID}/run-sync?token=${process.env.APIFY_TOKEN}`;
+    const payload = {
+      search: query,
+      location: "India",
+      maxItems: 40
+    };
+
+    const res = await axios.post(url, payload);
+    const items = res.data.items || [];
+
+    return items.map(job => ({
+      title: job.title,
+      company: job.company,
+      location: job.location || "India",
+      description: job.description,
+      url: job.jobUrl,
+      source: "LinkedIn"
+    }));
+  } catch (err) {
+    console.error("LinkedIn Apify error:", err.message);
+    return [];
+  }
+}
+
+// Indeed Scraper
+async function fetchIndeedJobs(query = "concept artist") {
+  try {
+    const url = `https://api.apify.com/v2/actor-tasks/${process.env.APIFY_INDEED_TASK_ID}/run-sync?token=${process.env.APIFY_TOKEN}`;
+    const payload = {
+      search: query,
+      location: "India",
+      maxItems: 40
+    };
+
+    const res = await axios.post(url, payload);
+    const items = res.data.items || [];
+
+    return items.map(job => ({
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      description: job.description,
+      url: job.url,
+      source: "Indeed"
+    }));
+  } catch (err) {
+    console.error("Indeed Apify error:", err.message);
+    return [];
+  }
+}
+
+// Naukri.Com Scraper
+async function fetchNaukriJobs(query = "concept artist") {
+  try {
+    const url = `https://api.apify.com/v2/actor-tasks/${process.env.APIFY_NAUKRI_TASK_ID}/run-sync?token=${process.env.APIFY_TOKEN}`;
+    const payload = {
+      search: query,
+      location: "India",
+      maxItems: 40
+    };
+
+    const res = await axios.post(url, payload);
+    const items = res.data.items || [];
+
+    return items.map(job => ({
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      description: job.description,
+      url: job.link,
+      source: "Naukri"
+    }));
+  } catch (err) {
+    console.error("Naukri Apify error:", err.message);
+    return [];
+  }
+}
+
+
 /* ==================================================
    MERGE + DEDUPE JOBS ACROSS SOURCES
    ================================================== */
@@ -429,11 +512,22 @@ function smartFilterJobs(jobs) {
    ================================================== */
 app.get('/india-studio-jobs-all', async (req, res) => {
   try {
-    const q = req.query.q || "concept artist, 2d artist, game artist";
+    const q = req.query.q || "concept artist";
 
-    const [adzuna, jooble] = await Promise.all([
+    const [
+      adzuna,
+      jooble,
+      linkedinJobs,
+      indeedJobs,
+      naukriJobs,
+      genericJobs
+    ] = await Promise.all([
       searchAdzunaIndiaJobs(q),
-      searchJoobleIndiaJobs(q)
+      searchJoobleIndiaJobs(q),
+      fetchLinkedInJobs(q),
+      fetchIndeedJobs(q),
+      fetchNaukriJobs(q),
+      fetchGenericJobs(q)
     ]);
 
     const remotive = storedJobs.map(j => ({
@@ -445,11 +539,18 @@ app.get('/india-studio-jobs-all', async (req, res) => {
       source: "Remotive"
     }));
 
-    // Merge + filter
-    const merged = mergeJobSources(remotive, adzuna, jooble);
+    const merged = mergeJobSources(
+      remotive,
+      adzuna,
+      jooble,
+      linkedinJobs,
+      indeedJobs,
+      naukriJobs,
+      genericJobs
+    );
+
     const filtered = smartFilterJobs(merged);
 
-    // Score + sort
     const scored = filtered
       .map(job => ({ ...job, relevance: scoreJobRelevance(job) }))
       .sort((a, b) => b.relevance - a.relevance);
@@ -458,15 +559,19 @@ app.get('/india-studio-jobs-all', async (req, res) => {
       sources: {
         remotive: remotive.length,
         adzuna: adzuna.length,
-        jooble: jooble.length
+        jooble: jooble.length,
+        linkedin: linkedinJobs.length,
+        indeed: indeedJobs.length,
+        naukri: naukriJobs.length,
+        generic: genericJobs.length
       },
       total_after_filtering: scored.length,
       jobs: scored
     });
 
   } catch (err) {
-    console.error("Smart India search error:", err);
-    res.status(500).json({ error: "Failed to run smart job search" });
+    console.error("Smart India search with ALL scrapers error:", err);
+    res.status(500).json({ error: "Failed to run unified job search" });
   }
 });
 
