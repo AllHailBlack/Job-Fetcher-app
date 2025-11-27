@@ -112,7 +112,7 @@
   </div>
 
   <script>
-    const BASE_URL = "https://job-fetcher-app.onrender.com"; // Replace after deployment
+    const BASE_URL = "https://YOUR-RENDER-URL.onrender.com"; // Replace after deployment
 
     async function uploadResume() {
       const file = document.getElementById('resumeFile').files[0];
@@ -179,6 +179,32 @@
       const res = await fetch(BASE_URL + '/india-studio-jobs-all');
       const data = await res.json();
       document.getElementById('indiaJobsResult').textContent = JSON.stringify(data, null, 2);
+
+      // Render cards
+      const container = document.getElementById('jobCards');
+      container.innerHTML = '';
+
+      data.jobs.forEach(job => {
+        const card = document.createElement('div');
+        card.style.padding = '15px';
+        card.style.margin = '10px 0';
+        card.style.background = '#fff';
+        card.style.border = '1px solid #ccc';
+        card.style.borderRadius = '8px';
+        card.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)';
+
+        card.innerHTML = `
+          <h3 style="margin:0;">${job.title}</h3>
+          <p style="margin:5px 0; font-weight:bold;">${job.company}</p>
+          <p style="margin:5px 0;">📍 ${job.location}</p>
+          <p style="margin:10px 0;">${job.description.substring(0, 200)}...</p>
+          <p><strong>Source:</strong> ${job.source}</p>
+          <p><strong>Relevance:</strong> ${job.relevance}</p>
+          <a href="${job.url}" target="_blank" style="display:inline-block; margin-top:10px; padding:10px 15px; background:#0078ff; color:white; border-radius:5px; text-decoration:none;">Apply</a>
+        `;
+
+        container.appendChild(card);
+      });
     }
 
   </script>
@@ -186,6 +212,9 @@
     <h2>🇮🇳 India Studio Job Search</h2>
     <button onclick="fetchIndiaStudioJobs()">Fetch India Studio Jobs</button>
     <div id="indiaJobsResult" class="result-box"></div>
+
+    <h3>Results</h3>
+    <div id="jobCards" style="margin-top:20px;"></div>
   </div>
 
 </body>
